@@ -3,7 +3,7 @@
 
 clc;clear;close all;
 
-dataset_dir='D:Cache/Git/HandPointNet/data/CVPR15_MSRAHandGesture/cvpr15_MSRAHandGestureDB/';%'../data/cvpr15_MSRAHandGestureDB/'
+dataset_dir='D:/Cache/Git/HandPointNet/data/cvpr15_MSRAHandGestureDB/';%'../data/cvpr15_MSRAHandGestureDB/'
 save_dir='./';
 subject_names={'P0','P1','P2','P3','P4','P5','P6','P7','P8'};
 gesture_names={'1','2','3','4','5','6','7','8','9','I','IP','L','MP','RP','T','TIP','Y'};
@@ -24,11 +24,14 @@ for sub_idx = 1:length(subject_names)
         
         % 1. read ground truth
         fileID = fopen([gesture_dir '/joint.txt']);
-        
+            % fscanf(fileID,format,size) 依次读取文件内容
+            %size 为数则表示读取数目，为矩阵则读取该大小的矩阵
         frame_num = fscanf(fileID,'%d',1);
         A = fscanf(fileID,'%f', frame_num*21*3);
         gt_wld=reshape(A,[3,21,frame_num]);
-        gt_wld(3,:,:) = -gt_wld(3,:,:);
+        gt_wld(3,:,:) = -gt_wld(3,:,:);     % gt_wld(3,:,:)数据*-1 
+           % premute(A,order) 按照order的顺序重新排列矩阵
+           % 此处gt_wld变成一个[fram_num,21,3]矩阵
         gt_wld=permute(gt_wld, [3 2 1]);
         
         fclose(fileID);
@@ -37,17 +40,20 @@ for sub_idx = 1:length(subject_names)
         save_gesture_dir = [save_dir subject_names{sub_idx} '/' gesture_names{ges_idx}];
         mkdir(save_gesture_dir);
         
-        display(save_gesture_dir);
-        
+        display(save_gesture_dir);      %显示路径 
+            %初始化接受数据变量
         Point_Cloud_FPS = zeros(frame_num,SAMPLE_NUM,6);
         Volume_rotate = zeros(frame_num,3,3);
         Volume_length = zeros(frame_num,1);
         Volume_offset = zeros(frame_num,3);
         Volume_GT_XYZ = zeros(frame_num,JOINT_NUM,3);
+            % valid = msra_valid 对应行列的值，为num * 1 矩阵
         valid = msra_valid{sub_idx, ges_idx};
         
+        %从valid 中找到对应的值（逻辑值）
         for frm_idx = 1:length(depth_files)
-            if ~valid(frm_idx)
+                % 当frm_idx值为0时跳过接下来的代码并开始下一次循环
+            if ~valid(frm_idx)      
                 continue;
             end
             %% 2.1 read binary file
@@ -65,16 +71,17 @@ for sub_idx = 1:length(subject_names)
             valid_pixel_num = bb_width*bb_height;
 
             hand_depth = fread(fileID,[bb_width, bb_height],'float32');
-            hand_depth = hand_depth';
+            hand_depth = hand_depth';   % 转置
             
             fclose(fileID);
             
             %% 2.2 convert depth to xyz
-            fFocal_MSRA_ = 241.42;	% mm
+            fFocal_MSRA_ = 241.42;	% mm  焦距
             hand_3d = zeros(valid_pixel_num,3);
             for ii=1:bb_height
                 for jj=1:bb_width
                     idx = (jj-1)*bb_height+ii;
+                        % hand_3d(idx, 1)=。。 相当于指定第idx行，1列的数值
                     hand_3d(idx, 1) = -(img_width/2 - (jj+bb_left-1))*hand_depth(ii,jj)/fFocal_MSRA_;
                     hand_3d(idx, 2) = (img_height/2 - (ii+bb_top-1))*hand_depth(ii,jj)/fFocal_MSRA_;
                     hand_3d(idx, 3) = hand_depth(ii,jj);
@@ -82,32 +89,44 @@ for sub_idx = 1:length(subject_names)
             end
 
             valid_idx = 1:valid_pixel_num;
+                % 寻找不为0 的点
             valid_idx = valid_idx(hand_3d(:,1)~=0 | hand_3d(:,2)~=0 | hand_3d(:,3)~=0);
             hand_points = hand_3d(valid_idx,:);
-
+                % 去除只有一列或一行的元素。
             jnt_xyz = squeeze(gt_wld(frm_idx,:,:));
             
             %% 2.3 create OBB
+                %PCA降维后的每个样本的特征的维数，一般不会超过训练样本的个数
+                %COEFF是X矩阵所对应的协方差阵V的所有特征向量组成的矩阵，即变换矩阵或称投影矩阵，
+                %COEFF每列对应一个特征值的特征向量，列的排列顺序是按特征值的大小递减排序，
+                %返回的SCORE是对主分的打分，也就是说原X矩阵在主成分空间的表示。
+                %SCORE每行对应样本观测值，每列对应一个主成份(变量)，它的行和列的数目和X的行列数目相同。
+                %返回的latent是一个向量，它是X所对应的协方差矩阵的特征值向量。
             [coeff,score,latent] = pca(hand_points);
+                % hand_points为一个n行3列的矩阵，所以coeff为一个3行3列的矩阵
             if coeff(2,1)<0
                 coeff(:,1) = -coeff(:,1);
             end
             if coeff(3,3)<0
                 coeff(:,3) = -coeff(:,3);
             end
-            coeff(:,2)=cross(coeff(:,3),coeff(:,1));
+            coeff(:,2)=cross(coeff(:,3),coeff(:,1));    %cross 计算叉乘
 
             ptCloud = pointCloud(hand_points);
 
             hand_points_rotate = hand_points*coeff;
 
             %% 2.4 sampling
+                %size(n,1),返回矩阵的行数或列数，1为行数，2为列数
             if size(hand_points,1)<SAMPLE_NUM
+                    %floor(x) 函数将x中元素取整，值y为不大于本身的最小整数。对于复数，分别对实部和虚部取整
                 tmp = floor(SAMPLE_NUM/size(hand_points,1));
                 rand_ind = [];
                 for tmp_i = 1:tmp
                     rand_ind = [rand_ind 1:size(hand_points,1)];
                 end
+                    % randperm(n,k) 随机排序，在n 范围内随机选取k个数随机排序
+                    % mod(a,b) 取模运算，a/b取余，余数符号和被除数b相同
                 rand_ind = [rand_ind randperm(size(hand_points,1), mod(SAMPLE_NUM, size(hand_points,1)))];
             else
                 rand_ind = randperm(size(hand_points,1),SAMPLE_NUM);
@@ -117,13 +136,15 @@ for sub_idx = 1:length(subject_names)
             
             %% 2.5 compute surface normal
             normal_k = 30;
+                %pcnormals(ptcloud,k) 估计点云的法线
+                % k 是局部平面拟合的点数，k >= 3
             normals = pcnormals(ptCloud, normal_k);
             normals_sampled = normals(rand_ind,:);
 
             sensorCenter = [0 0 0];
             for k = 1 : SAMPLE_NUM
                p1 = sensorCenter - hand_points_sampled(k,:);
-               % Flip the normal vector if it is not pointing towards the sensor.
+               % Flip(翻转) the normal vector if it is not pointing towards the sensor.
                angle = atan2(norm(cross(p1,normals_sampled(k,:))),p1*normals_sampled(k,:)');
                if angle > pi/2 || angle < -pi/2
                    normals_sampled(k,:) = -normals_sampled(k,:);
@@ -148,6 +169,7 @@ for sub_idx = 1:length(subject_names)
             else
                 offset = mean(hand_points_normalized_sampled);
             end
+                %repmat(A, r1,r2) 将A*(可以是矩阵)扩展成为r1 * r2 大小的矩阵
             hand_points_normalized_sampled = hand_points_normalized_sampled - repmat(offset,SAMPLE_NUM,1);
 
             %% 2.7 FPS Sampling
