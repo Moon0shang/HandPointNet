@@ -53,11 +53,6 @@ for sub_idx in range(len(sub_names)):
         for frm_idx in range(len(depth_files)):
             if not valid(frm_idx):
                 continue
-            if frm_idx < 10:
-                str_frm_idx = str(0) * 5 + str(frm_idx)
-            elif frm_idx < 100:
-                str_frm_idx = str(0) * 4 + str(frm_idx)
-            else:
-                str_frm_idx = str(0) * 3 + str(frm_idx)
+                
                 # read binary files
-            with open(ges_dir+'/000'+str_frm_idx+'_depth.bin')
+            with open(ges_dir+str('%06d' %frm_idx)+'_depth.bin')
