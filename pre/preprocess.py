@@ -96,4 +96,5 @@ class preprocess(object):
                 for ii in bb_height:
                     for jj in bb_width:
                         idx = jj * bb_height + ii+1
-                        hand_3d[idx, 1] =
+                        hand_3d[idx, 1] = -(img_width/2 - (jj + bb_left-1))*hand_depth(ii,jj)/fFocal_msra
+                       
