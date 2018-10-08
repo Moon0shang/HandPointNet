@@ -35,7 +35,7 @@ class preprocess(object):
                 ges_dir = os.path.join(
                     dataset_dir, sub_names[sub_idx], ges_names[ges_idx])
                 self.read_ground_truth(ges_dir)
-                save_ges_dir = os.path.join(
+                self.save_ges_dir = os.path.join(
                     save_dir, sub_names[sub_idx], ges_names[ges_names])
                 os.mkdir(save_ges_dir)
                 print(save_ges_dir)
@@ -62,10 +62,11 @@ class preprocess(object):
         volume_offset = np.zeros((self.frame_num, 3))
         volume_GT_XYZ = np.zeros((self.frame_num, self.joint_num, 3))
 
-    def read_conv_depth(self, path，sub_idx, ges_idx):
+    def read_conv_depth(self, path, sub_idx, ges_idx):
+
         num = 0
         for i in os.listdir(path):
-            if os.path.splitext(i)[1] = '.bin':
+            if os.path.splitext(i)[1] == '.bin':
                 num += 1
         valid = self.msra_valid[sub_idx, ges_idx]
         for frm_idx in range(num):
@@ -110,14 +111,14 @@ class preprocess(object):
                         valid_idx.append(num)
 
                 hand_points = hand_3d[valid_idx, :]
-                jnt_xyz = np.squeeze(gt_wld(frm_idx, :, : ))
+                jnt_xyz = np.squeeze(gt_wld[frm_idx, :, :])
 
     def OOB_PCA(self, hand_points):
         coeff = None
         pt_cloud = None
         hand_points_rotate = None
 
-    def sampling_nomalizing(self, hand_points):
+    def sampling_nomalizing(self, hand_points, hand_points_rotate):
         hand_shape = hand_points.shape[0]
         if hand_shape < self.sample_num:
             tmp = np.floor(self.sample_num / hand_shape)
@@ -130,15 +131,79 @@ class preprocess(object):
         else:
             rand_ind = np.random.randint(
                 0, hand_shape, size=self.sample_num % hand_shape)
-        hand_points_sampled = hand_points[rand_ind, :]\
-            hand_points_rotate_sampled = hand_points_rotate[rand_ind, :]
+        hand_points_sampled = hand_points[rand_ind, :]
+        hand_points_rotate_sampled = hand_points_rotate[rand_ind, :]
 
         normal_k = 30
+        # 需要修改
         normals =
         normals_sampled = normals[rand_ind, :]
 
         sensor_center = [0, 0, 0]
         for i in range(self.sample_num):
             p1 = sensor_center - hand_points_sampled[k, :]
+
+            # 可能需要修改
             angle = np.arctan2(
                 norm(p1*normals_sampled[k, :]), p1*normals_sampled[k, :].transport)
+            if angle > pi / 2 or angle < -pi / 2:
+                normals_sampled[k, :] = -normals_sampled[k, :]
+
+            normals_sampled_rotate = normals_sampled * coeff
+
+            # Normalize point cloud
+            x_min_max = [min(hand_point_rotate(:, 1), max(hand_points_rotate[:, 1]))]
+            y_min_max = [min(hand_point_rotate(:, 2), max(hand_points_rotate[:, 2]))]
+            z_min_max = [min(hand_point_rotate(:, 3), max(hand_points_rotate[:, 3]))]
+
+            scale = 1.2
+            bb3d_x_len = scale * (x_min_max[1] - x_min_max[0])
+            bb3d_y_len = scale * (x_min_max[1] - x_min_max[0])
+            bb3d_z_len = scale * (x_min_max[1] - x_min_max[0])
+            max_bb3d_len = bb3d_x_len
+
+            hand_points_normalized_sampled = hand_points_rotate_sampled / max_bb3d_len
+            if hand_shape < self.sample_num:
+                offset = np.mean(hand_points_rotate) / max_bb3d_len
+            else:
+                offset = np.mean(hand_points_normalized_sampled)
+
+            hand_points_normalized_sampled -= offset
+
+            pc = [hand_points_normalized_sampled, normals_sampled_rotate]
+
+            # 需要修改
+            sampled_idx_l1 =
+            other_idx = np.setdiff1d(
+                [i for i in self.sample_num], sampled_idx_l1)
+            new_idx = [sampled_idx_l1, other_idx]
+            pc = pc[new_idx, :]
+
+            sampled_idx_l2 =
+            other_idx = np.setdiff1d(
+                [i for i in self.sample_num], sampled_idx_l2)
+            new_idx = [sampled_idx_l2, other_idx]
+            pc[i for i in self.sample_num, :] = pc[new_idx, :]
+
+            # ground truth
+            jnt_xyz_normalized = (jnt_xyz * coeff) / max_bb3d_len
+            jnt_xyz_normalized -= offset
+
+            Point_Cloud_FPS[frm_idx, :, :] = pc
+            Volume_rotate[frm_idx, :, :] = coeff
+            Volume_lenth[frm_idx] = max_bb3d_len
+            Volume_offset[frm_idx, :] = offset
+            Volume_GT_XYZ[frm_idx, :, :] = jnt_xyz_normalized
+
+            # save
+            sio.savemat(self.save_ges_dir +
+                        '/Point_Cloud_FPS.mat', Point_Cloud_FPS)
+            sio.savemat(self.save_ges_dir +
+                        '/Volume_rotate.mat', Volume_rotate)
+            sio.savemat(self.save_ges_dir +
+                        '/Volume_length.mat', Volume_length)
+            sio.savemat(self.save_ges_dir +
+                        '/Volume_offset.mat', Volume_offset)
+            sio.savemat(self.save_ges_dir +
+                        '/Volume_GT_XYZ.mat', Volume_GT_XYZ)
+            sio.savemat(self.save_ges_dir+'/valid.mat', valid)
