@@ -136,6 +136,7 @@ class preprocess(object):
 
         normal_k = 30
         # 需要修改
+        # normals = pcnormals(ptCloud, normal_k);
         normals =
         normals_sampled = normals[rand_ind, :]
 
@@ -144,6 +145,7 @@ class preprocess(object):
             p1 = sensor_center - hand_points_sampled[k, :]
 
             # 可能需要修改
+            # angle = atan2(norm(cross(p1,normals_sampled(k,:))),p1*normals_sampled(k,:)');
             angle = np.arctan2(
                 norm(p1*normals_sampled[k, :]), p1*normals_sampled[k, :].transport)
             if angle > pi / 2 or angle < -pi / 2:
@@ -173,12 +175,14 @@ class preprocess(object):
             pc = [hand_points_normalized_sampled, normals_sampled_rotate]
 
             # 需要修改
+            #sampled_idx_l1 = farthest_point_sampling_fast(hand_points_normalized_sampled, sample_num_level1)';
             sampled_idx_l1 =
             other_idx = np.setdiff1d(
                 [i for i in self.sample_num], sampled_idx_l1)
             new_idx = [sampled_idx_l1, other_idx]
             pc = pc[new_idx, :]
-
+            #需要修改
+            # sampled_idx_l2 = farthest_point_sampling_fast(hand_points_normalized_sampled, sample_num_level2)';
             sampled_idx_l2 =
             other_idx = np.setdiff1d(
                 [i for i in self.sample_num], sampled_idx_l2)
