@@ -3,6 +3,7 @@ import os.path
 import scipy.io as sio
 import numpy as np
 import struct
+import random
 
 dataset_dir = "D:/Cache/Git/HandPointNet/data/cvpr15_MSRAHandGestureDB/"
 save_dir = "./"
@@ -96,5 +97,48 @@ class preprocess(object):
                 for ii in bb_height:
                     for jj in bb_width:
                         idx = jj * bb_height + ii+1
-                        hand_3d[idx, 1] = -(img_width/2 - (jj + bb_left-1))*hand_depth(ii,jj)/fFocal_msra
-                       
+                        hand_3d[idx, 1] = -(img_width/2 - (jj + bb_left-1)
+                                            ) * hand_depth(ii, jj)/fFocal_msra
+                        hand_3d[idx, 2] = -(img_height/2 - (ii + bb_top-1)
+                                            ) * hand_depth(ii, jj) / fFocal_msra
+                        hand_3d[idx, 3] = hand_depth(ii, jj)
+
+                valid_idx = []
+
+                for num in range(valid_pixel_num):
+                    if any(hand_3d[num, :]):
+                        valid_idx.append(num)
+
+                hand_points = hand_3d[valid_idx, :]
+                jnt_xyz = np.squeeze(gt_wld(frm_idx, :, : ))
+
+    def OOB_PCA(self, hand_points):
+        coeff = None
+        pt_cloud = None
+        hand_points_rotate = None
+
+    def sampling_nomalizing(self, hand_points):
+        hand_shape = hand_points.shape[0]
+        if hand_shape < self.sample_num:
+            tmp = np.floor(self.sample_num / hand_shape)
+            rand_ind = []
+            for tmp_i in range(tmp):
+                rand_ind += [i for i in range(hand_shape)]
+
+            rand_ind += np.random.randint(0, hand_shape,
+                                          size=self.sample_num % hand_shape)
+        else:
+            rand_ind = np.random.randint(
+                0, hand_shape, size=self.sample_num % hand_shape)
+        hand_points_sampled = hand_points[rand_ind, :]\
+            hand_points_rotate_sampled = hand_points_rotate[rand_ind, :]
+
+        normal_k = 30
+        normals =
+        normals_sampled = normals[rand_ind, :]
+
+        sensor_center = [0, 0, 0]
+        for i in range(self.sample_num):
+            p1 = sensor_center - hand_points_sampled[k, :]
+            angle = np.arctan2(
+                norm(p1*normals_sampled[k, :]), p1*normals_sampled[k, :].transport)
