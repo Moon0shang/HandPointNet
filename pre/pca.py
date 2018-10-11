@@ -10,11 +10,13 @@ class PCA(object):
     def __init__(self, data):
         self.data = data
         self.col = data.shape[1]
-        self.ouput_var()
+        # self.ouput_var()
 
     # first step: normalize the matrix
     def cal_mean(self):
         mean_value = np.mean(self.data)
+        # 要想正确使用std， 必须设置参数ddof=1
+        # 数据量较大时结果误差可忽略，但数据量小时必须注意
         std_value = np.std(self.data, ddof=1)
         self.data = (self.data - mean_value) / std_value
 
@@ -38,7 +40,7 @@ class PCA(object):
                 break
 
     # ouput values
-    def ouput_var(self):
+    def pca(self):
 
         self.cal_mean()
         coeff, latent = self.cal_features()

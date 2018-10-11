@@ -1,3 +1,8 @@
+'''
+farthest point sampling
+point_cloud: Nx3
+'''
+
 import numpy as np
 
 
@@ -10,7 +15,8 @@ class FPSF(object):
     def fpsf(self):
 
         if self.pc_num <= self.sample_num:
-            sampled_idx = np.array(range(self.pc_num)).transpose()
+            sampled_idx = np.array(
+                range(self.pc_num), dtype=np.int32).transpose()
             rand_m = np.random.randint(
                 1, self.pc_num, size=(self.sample_num-self.pc_num, 1))
             sampled_idx = np.append(sampled_idx, rand_m, axis=0)
