@@ -1,5 +1,4 @@
 % compute PCA
-% author: Liuhao Ge
 
 clc;clear;close all;
 

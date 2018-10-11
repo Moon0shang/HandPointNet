@@ -1,7 +1,7 @@
 function sampled_idx = farthest_point_sampling_fast(point_cloud, sample_num)
 % farthest point sampling
 % point_cloud: Nx3
-% author: Liuhao Ge
+
 
 pc_num = size(point_cloud,1);
 

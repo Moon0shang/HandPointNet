@@ -1,5 +1,5 @@
 % create point cloud from depth image
-% author: Liuhao Ge
+
 
 clc;clear;close all;
 
