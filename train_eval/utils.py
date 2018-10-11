@@ -1,6 +1,5 @@
 '''
 utils
-author: Liuhao Ge
 '''
 import torch
 import torch.nn as nn

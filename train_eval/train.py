@@ -1,6 +1,5 @@
 '''
 training
-author: Liuhao Ge
 '''
 import argparse
 import os

@@ -1,6 +1,5 @@
 '''
 load hand point data
-author: Liuhao Ge
 '''
 import torch.utils.data as data
 import os

@@ -1,6 +1,8 @@
 import math
+
 import torch
 import torch.nn as nn
+
 from utils import group_points_2
 
 nstates_plus_1 = [64, 64, 128]
