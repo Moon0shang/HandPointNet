@@ -4,6 +4,8 @@ import scipy.io as sio
 import numpy as np
 import struct
 import random
+from pca import PCA
+import pcl
 
 dataset_dir = "D:/Cache/Git/HandPointNet/data/cvpr15_MSRAHandGestureDB/"
 save_dir = "./"
@@ -36,7 +38,7 @@ class preprocess(object):
                     dataset_dir, sub_names[sub_idx], ges_names[ges_idx])
                 self.read_ground_truth(ges_dir)
                 self.save_ges_dir = os.path.join(
-                    save_dir, sub_names[sub_idx], ges_names[ges_names])
+                    save_dir, sub_names[sub_idx], ges_names[ges_idx])
                 os.mkdir(save_ges_dir)
                 print(save_ges_dir)
                 self.read_depth_files(path, sub_idx, ges_idx)
@@ -114,9 +116,17 @@ class preprocess(object):
                 jnt_xyz = np.squeeze(gt_wld[frm_idx, :, :])
 
     def OOB_PCA(self, hand_points):
-        coeff = None
+        coeff, score, latent = PCA(hand_points)
+        if coeff[2, 1] < 0:
+            coeff[:, 1] = -coeff[:, 1]
+        if coeff[3, 3] < 0:
+            coeff[:, 3] = -coeff[:, 3]
+        coeff[:, 2] = np.dot(coeff[:, 3], coeff[:, 1])
+
+        # 需要修改
+        # ptCloud = pointCloud(hand_points);
         pt_cloud = None
-        hand_points_rotate = None
+        hand_points_rotate = hand_points*coeff
 
     def sampling_nomalizing(self, hand_points, hand_points_rotate):
         hand_shape = hand_points.shape[0]
@@ -137,26 +147,29 @@ class preprocess(object):
         normal_k = 30
         # 需要修改
         # normals = pcnormals(ptCloud, normal_k);
-        normals =
+        normals = None
         normals_sampled = normals[rand_ind, :]
 
         sensor_center = [0, 0, 0]
-        for i in range(self.sample_num):
+        for k in range(self.sample_num):
             p1 = sensor_center - hand_points_sampled[k, :]
 
             # 可能需要修改
             # angle = atan2(norm(cross(p1,normals_sampled(k,:))),p1*normals_sampled(k,:)');
-            angle = np.arctan2(
-                norm(p1*normals_sampled[k, :]), p1*normals_sampled[k, :].transport)
-            if angle > pi / 2 or angle < -pi / 2:
+            angle = np.arctan2(np.linalg.norm(
+                p1*normals_sampled[k, :]), p1*normals_sampled[k, :].transpose())
+            if angle > np.pi / 2 or angle < -np.pi / 2:
                 normals_sampled[k, :] = -normals_sampled[k, :]
 
             normals_sampled_rotate = normals_sampled * coeff
 
             # Normalize point cloud
-            x_min_max = [min(hand_point_rotate(:, 1), max(hand_points_rotate[:, 1]))]
-            y_min_max = [min(hand_point_rotate(:, 2), max(hand_points_rotate[:, 2]))]
-            z_min_max = [min(hand_point_rotate(:, 3), max(hand_points_rotate[:, 3]))]
+            x_min_max = [min(hand_point_rotate[:, 1],
+                             max(hand_points_rotate[:, 1]))]
+            y_min_max = [min(hand_point_rotate[:, 2],
+                             max(hand_points_rotate[:, 2]))]
+            z_min_max = [min(hand_point_rotate[:, 3],
+                             max(hand_points_rotate[:, 3]))]
 
             scale = 1.2
             bb3d_x_len = scale * (x_min_max[1] - x_min_max[0])
@@ -175,19 +188,24 @@ class preprocess(object):
             pc = [hand_points_normalized_sampled, normals_sampled_rotate]
 
             # 需要修改
-            #sampled_idx_l1 = farthest_point_sampling_fast(hand_points_normalized_sampled, sample_num_level1)';
-            sampled_idx_l1 =
+            # sampled_idx_l1 = farthest_point_sampling_fast(hand_points_normalized_sampled, sample_num_level1)';
+            sampled_idx_l1 = None
             other_idx = np.setdiff1d(
                 [i for i in self.sample_num], sampled_idx_l1)
             new_idx = [sampled_idx_l1, other_idx]
-            pc = pc[new_idx, :]
-            #需要修改
-            # sampled_idx_l2 = farthest_point_sampling_fast(hand_points_normalized_sampled, sample_num_level2)';
-            sampled_idx_l2 =
+            # pc = pc[new_idx, :]
+            sort_idx = np.sort(new_idx)
+            for i in sort_idx:
+                pc[i, :] = pc[new_idx[i], :]
+                # 需要修改
+                # sampled_idx_l2 = farthest_point_sampling_fast(hand_points_normalized_sampled, sample_num_level2)';
+            sampled_idx_l2 = None
             other_idx = np.setdiff1d(
                 [i for i in self.sample_num], sampled_idx_l2)
             new_idx = [sampled_idx_l2, other_idx]
-            pc[i for i in self.sample_num, :] = pc[new_idx, :]
+            # pc[i for i in self.sample_num, :] = pc[new_idx, :]
+            for i in range(self.sample_num):
+                pc[i, :] = pc[new_idx[i], :]
 
             # ground truth
             jnt_xyz_normalized = (jnt_xyz * coeff) / max_bb3d_len
